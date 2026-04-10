@@ -1,0 +1,17 @@
+# Données — trop lourdes pour Git
+data/Books.csv
+minio_data/
+logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Docker
+*.tar
+
+# Spark
+*.parquet
+.ivy2/

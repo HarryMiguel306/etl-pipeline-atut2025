@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+
+  # ─────────────────────────────
+  # BASE DE DONNÉES AIRFLOW
+  # ─────────────────────────────
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "airflow" ]
+      interval: 10s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - etl_network
+
+  # ─────────────────────────────
+  # MINIO — STOCKAGE OBJET
+  # ─────────────────────────────
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - ./minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - etl_network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      retries: 3
+
+  # ─────────────────────────────
+  # AIRFLOW
+  # ─────────────────────────────
+  airflow:
+    build: .
+    command: standalone
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW_CONN_MINIO_DEFAULT: '{"conn_type": "aws", "login": "minioadmin", "password": "minioadmin", "extra": {"endpoint_url": "http://minio:9000"}}'
+      AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC: '60'
+      AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC: '60'
+      AIRFLOW__TASK__HEARTBEAT_TIMEOUT: '3600'
+      AIRFLOW__CORE__KILLED_TASK_CLEANUP_TIME: '3600'
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./scripts:/opt/airflow/scripts
+      - ./data:/opt/airflow/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - etl_network
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ─────────────────────────────
+  # SPARK MASTER
+  # ─────────────────────────────
+  spark-master:
+    image: apache/spark:3.5.0
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    ports:
+      - "8081:8080"
+      - "7077:7077"
+    networks:
+      - etl_network
+
+  # ─────────────────────────────
+  # SPARK WORKER
+  # ─────────────────────────────
+  spark-worker:
+    image: apache/spark:3.5.0
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    depends_on:
+      - spark-master
+    networks:
+      - etl_network
+
+networks:
+  etl_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
