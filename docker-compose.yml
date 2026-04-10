@@ -67,6 +67,7 @@ services:
       - ./plugins:/opt/airflow/plugins
       - ./scripts:/opt/airflow/scripts
       - ./data:/opt/airflow/data
+      - ./tests:/opt/airflow/tests
     depends_on:
       postgres:
         condition: service_healthy
