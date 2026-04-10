@@ -1,5 +1,6 @@
 import pandas as pd
 import logging
+import time
 from datetime import datetime
 import boto3
 from botocore.client import Config
@@ -57,9 +58,12 @@ def read_csv(file_path):
 #depot dans bronze
 
 def run():
+    t_start = time.time()
     logger.info("Démarrage de l'extraction des données CSV")
-    
+
+    t0 = time.time()
     df = read_csv("/opt/airflow/data/Books.csv")
+    logger.info(f"[PERF] Lecture CSV terminée en {time.time() - t0:.2f}s — {len(df)} lignes")
 
     df["source"] = "csv"
     df["extracted_at"] = datetime.now().isoformat()
@@ -67,16 +71,19 @@ def run():
     csv_bytes = df.to_csv(index=False).encode("utf-8")
 
     file_name = f"csv/books_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        
+
+    t0 = time.time()
     client = get_minio_client()
     client.put_object(
         Bucket="bronze",
         Key=file_name,
-        Body=df.to_csv(index=False).encode("utf-8"),
+        Body=csv_bytes,
         ContentType="text/csv"
     )
+    logger.info(f"[PERF] Upload MinIO terminé en {time.time() - t0:.2f}s")
 
     logger.info(f"Fichier {file_name} déposé dans le bucket bronze")
+    logger.info(f"[PERF] Extraction CSV totale : {time.time() - t_start:.2f}s")
     return file_name
 
 if __name__ == "__main__":

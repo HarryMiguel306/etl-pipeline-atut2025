@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import logging
+import time
 from datetime import datetime
 import boto3
 from botocore.client import Config
@@ -82,14 +83,18 @@ def scrape_books(max_pages=10):
 #depot dans bronze
 
 def run():
+    t_start = time.time()
     logger.info("Démarrage de l'extraction des livres depuis le site web")
-    
+
+    t0 = time.time()
     books = scrape_books(max_pages=10)
-    
+    logger.info(f"[PERF] Scraping terminé en {time.time() - t0:.2f}s — {len(books)} livres")
+
     data = json.dumps(books, indent=2, ensure_ascii=False)
-    
+
     file_name = f"web/books_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    
+
+    t0 = time.time()
     client = get_minio_client()
     client.put_object(
         Bucket="bronze",
@@ -97,8 +102,10 @@ def run():
         Body=data.encode("utf-8"),
         ContentType="application/json"
     )
+    logger.info(f"[PERF] Upload MinIO terminé en {time.time() - t0:.2f}s")
 
     logger.info(f"Fichier {file_name} déposé dans le bucket bronze")
+    logger.info(f"[PERF] Extraction web totale : {time.time() - t_start:.2f}s")
     return file_name
 
 if __name__ == "__main__":

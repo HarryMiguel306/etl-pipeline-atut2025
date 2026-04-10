@@ -1,6 +1,7 @@
 import requests
 import json
 import logging
+import time
 from datetime import datetime
 import boto3
 from botocore.client import Config
@@ -71,14 +72,18 @@ def fetch_books_from_api(subjects=["python", "data engineering", "machine learni
 #depot dans bronze
 
 def run():
+    t_start = time.time()
     logger.info("Démarrage de l'extraction des livres depuis l'API Open Library")
-    
+
+    t0 = time.time()
     books = fetch_books_from_api()
-    
+    logger.info(f"[PERF] Appels API terminés en {time.time() - t0:.2f}s — {len(books)} livres")
+
     data = json.dumps(books, indent=2)
-    
+
     file_name = f"api/books_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    
+
+    t0 = time.time()
     client = get_minio_client()
     client.put_object(
         Bucket="bronze",
@@ -86,8 +91,10 @@ def run():
         Body=data.encode("utf-8"),
         ContentType="application/json"
     )
+    logger.info(f"[PERF] Upload MinIO terminé en {time.time() - t0:.2f}s")
 
     logger.info(f"Fichier {file_name} déposé dans le bucket bronze")
+    logger.info(f"[PERF] Extraction API totale : {time.time() - t_start:.2f}s")
     return file_name
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, StringType
 import logging
+import time
 
 import sys
 sys.path.append("/opt/airflow/scripts")
@@ -63,11 +64,13 @@ def transform(spark):
 
 #point d'entrée
 def run() :
+    t_start = time.time()
     logger.info("Début de la transformation API")
     spark = create_spark_session()
-    
+
     try:
-        transform(spark)
+        count = transform(spark)
+        logger.info(f"[PERF] Transformation API terminée en {time.time() - t_start:.2f}s — {count} lignes")
     except Exception as e:
         logger.error(f"Erreur lors de la transformation API: {e}")
     finally:
