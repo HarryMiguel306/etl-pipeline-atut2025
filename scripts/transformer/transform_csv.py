@@ -3,25 +3,24 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, FloatType, StringType
 import logging
 
+import sys
+sys.path.append("/opt/airflow/scripts")
+from config import (
+    MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
+    SPARK_MASTER, SPARK_APP_NAME, SPARK_JARS
+)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-MINIO_ENDPOINT = "http://minio:9000"
-MINIO_ACCESS_KEY = "minioadmin"
-MINIO_SECRET_KEY = "minioadmin"
-
-#création session spark
 def create_spark_session():
     spark = SparkSession.builder \
-        .appName("ATUT2025_Transform_csv") \
-        .master("local[*]") \
-        .config("spark.jars", 
-            "/home/airflow/.ivy2/jars/com.amazonaws_aws-java-sdk-bundle-1.12.262.jar,"
-            "/home/airflow/.ivy2/jars/org.apache.hadoop_hadoop-aws-3.3.4.jar,"
-            "/home/airflow/.ivy2/jars/org.wildfly.openssl_wildfly-openssl-1.0.7.Final.jar") \
+        .appName(SPARK_APP_NAME) \
+        .master(SPARK_MASTER) \
+        .config("spark.jars", SPARK_JARS) \
         .config("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT) \
         .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY) \
         .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY) \
@@ -30,9 +29,7 @@ def create_spark_session():
                 "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
         .getOrCreate()
-    
     spark.sparkContext.setLogLevel("WARN")
-    logger.info("Session Spark créée")
     return spark
 
 def transform(spark):

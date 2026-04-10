@@ -5,6 +5,9 @@ import logging
 from datetime import datetime
 import boto3
 from botocore.client import Config
+import sys
+sys.path.append("/opt/airflow/scripts")
+from config import MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY
 
 # LOGGING
 
@@ -19,9 +22,9 @@ logger = logging.getLogger(__name__)
 def get_minio_client():
     return boto3.client(
         "s3",
-        endpoint_url="http://minio:9000",
-        aws_access_key_id="minioadmin",
-        aws_secret_access_key="minioadmin",
+        endpoint_url=MINIO_ENDPOINT,
+        aws_access_key_id=MINIO_ACCESS_KEY,
+        aws_secret_access_key=MINIO_SECRET_KEY,
         config=Config(signature_version="s3v4"),
     )
 
