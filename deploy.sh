@@ -1,10 +1,6 @@
 #!/bin/bash
 set -e  # Arrêt immédiat en cas d'erreur
 
-echo "========================================"
-echo "   ATUT 2025 — Pipeline ETL Books"
-echo "========================================"
-
 # Chargement des variables d'environnement depuis .env
 if [ -f .env ]; then
     export $(grep -v '^#' .env | grep -v '^$' | xargs)
